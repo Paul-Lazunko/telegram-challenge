@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Paul Lazunko Telegram Charts</title>
+    <script type="text/javascript" src="PLTelegramChart.js"></script>
+    <script type="text/javascript" src="getJSON.js"></script>
+    <script>
+      window.onload = function() {
+        getJSON('data.json', (error, data) => {
+          if ( error ) {
+            throw error;
+          } else {
+            PLTelegramChart.factory(data, {
+              chart: {
+                darkMode: true,
+                width: 800,
+                height: 400,
+                controlsWidth: 4
+              },
+              parentElementId: 'dataHolder'
+            })
+          }
+        });
+      };
+    </script>
+</head>
+<body>
+<div id="dataHolder"></div>
+
+</body>
+</html>
