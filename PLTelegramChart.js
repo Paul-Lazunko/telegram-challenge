@@ -19,58 +19,58 @@ class PLTelegramChart {
         'Nov',
         'Dec'
       ],
+      days: [
+        'Sun',
+        'Mon',
+        'Tue',
+        'Wed',
+        'Thu',
+        'Fri',
+        'Sat'
+      ],
       canvas: {
-        width: 400,
+        width: 600,
         height: 400,
         darkMode: false,
-        controlsWidth: 4
+        controlsWidth: 6
       }
     };
-    this.canvas = options.chart || this.defaults.canvas;
-    this.index = options.index;
-    this.points = {};
     this.formatData(options.data);
+    this.chart = options.chart || this.defaults.canvas;
+    this.index = options.index || 0;
+    this.touches = [];
+    this.points = {};
     this.parentElementId = options.parentElementId;
     this.checkBoxes = Object.keys(this.data);
-    this.lastX = 0;
-    let base = this.canvas.width;
-    let k = (this.canvas.controlsWidth*2)/base;
-    this.strategies = {};
-    this.strategies[`rightSubControl_${this.index}`] =  (e) => {
-      let x = this.crossEventX(e);
-      if ( this.markers.start < this.markers.end - 2 * k ) {
-        this.decreaseWidth(`rightControl_${this.index}`, x);
-      } else if ( x < 0 ) {
-        if ( this.markers.start > 0 ) {
-          this.decreaseWidth(`rightControl_${this.index}`, x);
-          this.increaseWidth(`leftControl_${this.index}`, x);
-        }
-      } else {
-        this.decreaseWidth(`rightControl_${this.index}`, x);
-      }
-    };
-    this.strategies[`leftSubControl_${this.index}`] = (e) => {
-      let x = this.crossEventX(e);
-      if ( this.markers.start < this.markers.end - 2 * k ) {
-        this.increaseWidth(`leftControl_${this.index}`, x);
-      } else if ( x > 0 ) {
-        if ( this.markers.end  < 1) {
-          this.decreaseWidth(`rightControl_${this.index}`, x);
-          this.increaseWidth(`leftControl_${this.index}`, x);
-        }
-      } else {
-        this.increaseWidth(`leftControl_${this.index}`, x);
-      }
-    };
-    this.strategies[`container_${this.index}`] = (e) => {
-      let x = this.crossEventX(e);
-      if ( this.markers.start - k/6 > 0 && x < 0 || this.markers.end + k/6 < 1 && x > 0 ) {
-        this.increaseWidth(`leftControl_${this.index}`, x);
-        this.decreaseWidth(`rightControl_${this.index}`, x);
-      }
-    };
-    this._markers = { start: 0, end: 1 };
     this.excludedKeys = [];
+    this.lastX = 0;
+    this._markers = { start: 0, end: 1 };
+
+    this.setStrategies();
+    this.overrideMethodsForExcludedKeys();
+  }
+
+  set markers ( value ) {
+    this._markers = value;
+    this.drawChart();
+  }
+
+  get markers () {
+    return this._markers;
+  }
+
+  set darkMode (v) {
+    this.chart.darkMode = v;
+    this.setStyles();
+    this.drawBackground();
+    this.drawChart();
+  }
+
+  get darkMode () {
+    return this.chart.darkMode;
+  }
+
+  overrideMethodsForExcludedKeys() {
     Object.defineProperty(this.excludedKeys, 'push', {
       enumerable: false,
       value: (v) => {
@@ -89,37 +89,63 @@ class PLTelegramChart {
         this.showPoint();
       }
     });
-  }
+  };
 
-  set markers ( value ) {
-    this._markers = value;
-    this.drawChart();
-  }
-
-  get markers () {
-    return this._markers;
-  }
-
-  set darkMode (v) {
-    this.canvas.darkMode = v;
-    this.setStyles();
-    this.drawBackground();
-    this.drawChart();
-    this.drawDates();
-  }
-
-  get darkMode () {
-    return this.canvas.darkMode;
-  }
-
-  crossEventX (e) {
-    let x = e.movementX;
-    if ( !x && x !== 0 ) {
-      if ( ! this.lastX ) {
-        this.lastX = e.changedTouches[0].clientX;
+  setStrategies () {
+    let base = this.chart.width;
+    let k = (this.chart.controlsWidth*2)/base;
+    this.strategies = {};
+    this.strategies[`rightSubControl_${this.index}`] =  (e) => {
+      let x = this.getXAcrossEvents(e);
+      if ( this.markers.start < this.markers.end - 2 * k ) {
+        this.decreaseWidth(`rightControl_${this.index}`, x);
+      } else if ( x < 0 ) {
+        if ( this.markers.start > 0 ) {
+          this.decreaseWidth(`rightControl_${this.index}`, x);
+          this.increaseWidth(`leftControl_${this.index}`, x);
+        }
       } else {
-        x = e.changedTouches[0].clientX - this.lastX;
-        this.lastX = e.changedTouches[0].clientX;
+        this.decreaseWidth(`rightControl_${this.index}`, x);
+      }
+    };
+    this.strategies[`leftSubControl_${this.index}`] = (e) => {
+      let x = this.getXAcrossEvents(e);
+      if ( this.markers.start < this.markers.end - 2 * k ) {
+        this.increaseWidth(`leftControl_${this.index}`, x);
+      } else if ( x > 0 ) {
+        if ( this.markers.end  < 1) {
+          this.decreaseWidth(`rightControl_${this.index}`, x);
+          this.increaseWidth(`leftControl_${this.index}`, x);
+        }
+      } else {
+        this.increaseWidth(`leftControl_${this.index}`, x);
+      }
+    };
+    this.strategies[`range_${this.index}`] = (e) => {
+      let x = this.getXAcrossEvents(e);
+      if ( this.markers.start - k/6 > 0 && x < 0 || this.markers.end + k/6 < 1 && x > 0 ) {
+        this.increaseWidth(`leftControl_${this.index}`, x);
+        this.decreaseWidth(`rightControl_${this.index}`, x);
+      }
+
+    };
+  }
+
+  getStrategy (target) {
+    let id = target.getAttribute('id');
+    return this.strategies[id];
+  }
+
+  getXAcrossEvents (e) {
+    let x = e.movementX || 0;
+    if ( !x ) {
+      let touch = event.touches[0] || event.changedTouches[0];
+      if ( this.touches.length ) {
+        x = touch.clientX - this.touches[0];
+        this.touches[0] = touch.clientX;
+      } else {
+        this.touches.push(touch.clientX);
+        x = 0;
       }
     }
     return x;
@@ -138,7 +164,7 @@ class PLTelegramChart {
     this.data = data;
   }
 
-  getCheckBoxesTemplate (){
+  getCheckBoxesTemplate () {
     let template = '';
     this.checkBoxes.map(checkBox => {
       if(!this.defaults.exceptionKeys.includes(checkBox)){
@@ -166,33 +192,33 @@ class PLTelegramChart {
         }
         #Chart_${this.index}.chart {
             margin: 20px 0;
-            width: ${this.canvas.width}px;
-            background-color: ${this.canvas.darkMode ? '#111' : '#fff'};
+            width: ${this.chart.width}px;
+            background-color: ${this.chart.darkMode ? '#111' : '#fff'};
             padding: 20px;
             border-radius: 20px;
         }
         #Chart_${this.index} .range {
             height: 40px;
-            background: ${this.canvas.darkMode ? '#111' : '#fff'};
+            background: ${this.chart.darkMode ? '#111' : '#fff'};
             cursor: move;
-            border: 1px solid ${this.canvas.darkMode ? '#bbb' : '#444'};
+            border: 1px solid ${this.chart.darkMode ? '#bbb' : '#444'};
         }
         #Chart_${this.index} .leftControl {
             height: 40px;
-            background-color: ${this.canvas.darkMode ? '#333' : '#ccc'};
+            background-color: ${this.chart.darkMode ? '#333' : '#ccc'};
             opacity: 0.75;
             float: left;
             cursor: auto;
             text-align: center;
             font-size: 10px;
             font-weight: bold;
-            color: ${this.canvas.darkMode ? '#eee' : '#111'};
+            color: ${this.chart.darkMode ? '#eee' : '#111'};
             line-height: 40px;
         }
         #Chart_${this.index} .leftSubControl {
-            width: ${this.canvas.controlsWidth}px;
+            width: ${this.chart.controlsWidth}px;
             height: 40px;
-            background-color: ${this.canvas.darkMode ? '#bbb' : '#444'};
+            background-color: ${this.chart.darkMode ? '#bbb' : '#444'};
             opacity: 0.95;
             float: left;
             cursor: w-resize;
@@ -200,34 +226,34 @@ class PLTelegramChart {
         }
         #Chart_${this.index} .rightControl {
             height: 40px;
-            background-color: ${this.canvas.darkMode ? '#333' : '#ccc'};
+            background-color: ${this.chart.darkMode ? '#333' : '#ccc'};
             opacity: 0.75;
             float: right;
             cursor: auto;
             text-align: center;
             font-size: 10px;
             font-weight: bold;
-            color: ${this.canvas.darkMode ? '#eee' : '#111'};
+            color: ${this.chart.darkMode ? '#eee' : '#111'};
             line-height: 40px;
         }
         #Chart_${this.index} .rightSubControl {
-            width: ${this.canvas.controlsWidth}px;
+            width: ${this.chart.controlsWidth}px;
             height: 40px;
-            background-color: ${this.canvas.darkMode ? '#bbb' : '#444'};
+            background-color: ${this.chart.darkMode ? '#bbb' : '#444'};
             opacity: 0.95;
             float: right;
             cursor: e-resize;
             z-index: 999;
         }
         #Chart_${this.index} .canvas {
-            border: 1px solid ${this.canvas.darkMode ? '#bbb' : '#444'};
+            border: 1px solid ${this.chart.darkMode ? '#bbb' : '#444'};
         }
         #Chart_${this.index} .round {
             position: relative;
             display: inline-block;
             width: auto;
             border-radius: 20px;
-            border: 1px solid ${this.canvas.darkMode ? '#333' : '#ccc'};
+            border: 1px solid ${this.chart.darkMode ? '#333' : '#ccc'};
             padding: 10px;
             height: 24px;
         }
@@ -236,8 +262,8 @@ class PLTelegramChart {
         }
 
         #Chart_${this.index} .round label {
-            background-color: ${this.canvas.darkMode ? '#111' : '#fff'};
-            border: 1px solid ${this.canvas.darkMode ? '#333' : '#ccc'};
+            background-color: ${this.chart.darkMode ? '#111' : '#fff'};
+            border: 1px solid ${this.chart.darkMode ? '#333' : '#ccc'};
             border-radius: 50%;
             cursor: pointer;
             height: 28px;
@@ -248,7 +274,7 @@ class PLTelegramChart {
         }
 
         #Chart_${this.index} .round label:after {
-            border: 2px solid ${this.canvas.darkMode ? '#fff' : '#111'};
+            border: 2px solid ${this.chart.darkMode ? '#fff' : '#111'};
             border-top: none;
             border-right: none;
             content: "";
@@ -274,28 +300,28 @@ class PLTelegramChart {
             min-width: 40px;
             margin-left: 10px;
             line-height: 24px;
-            color: ${this.canvas.darkMode ? '#eee': '#333'}
+            color: ${this.chart.darkMode ? '#eee': '#333'}
         }  
          #Chart_${this.index} #switcher_${this.index} {
             float: right;
         } 
         #Chart_${this.index} #dates_holder_${this.index} {
-            width: ${this.canvas.width}px;
+            width: ${this.chart.width}px;
             height: 20px; 
             cursor: pointer;         
 
         }   
         #Chart_${this.index} #pointShower_${this.index} {
             position: absolute;
-            background: ${this.canvas.darkMode ? '#333': '#eee'};
+            background: ${this.chart.darkMode ? '#333': '#eee'};
             border-radius: 10px;
-            border: 1px solid ${this.canvas.darkMode ? '#eee': '#333'};
-            width: 60px;
+            border: 1px solid ${this.chart.darkMode ? '#eee': '#333'};
+            width: 90px;
             padding: 10px;
         }  
         #pointShower_${this.index} .date {
             font-weight: bold;
-            color: ${this.canvas.darkMode ? '#eee': '#333'}
+            color: ${this.chart.darkMode ? '#eee': '#333'}
         }
     </style>`
 
@@ -313,12 +339,12 @@ class PLTelegramChart {
 
   getTemplate () {
     return `<div class="chart" id="Chart_${this.index}">
-                <canvas class="canvas" width="${this.canvas.width}" height="${this.canvas.height}" id="chart_${this.index}"></canvas>
+                <canvas class="canvas" width="${this.chart.width}" height="${this.chart.height}" id="chart_${this.index}"></canvas>
                 <div id="dates_holder_${this.index}"></div>
-                <div class="range" id="container_${this.index}" style="width: ${this.canvas.width}px;">
-                  <div class="leftControl" id="leftControl_${this.index}" style="width: ${Math.round(this.canvas.width/4)}px;"></div>
+                <div class="range" id="range_${this.index}" style="width: ${this.chart.width}px;">
+                  <div class="leftControl" id="leftControl_${this.index}" style="width: ${Math.round(this.chart.width/4)}px;"></div>
                   <div class="leftSubControl" id="leftSubControl_${this.index}"></div>
-                  <div class="rightControl" id="rightControl_${this.index}" style="width: ${Math.round(this.canvas.width/4)}px;"></div>
+                  <div class="rightControl" id="rightControl_${this.index}" style="width: ${Math.round(this.chart.width/4)}px;"></div>
                   <div class="rightSubControl" id="rightSubControl_${this.index}"></div>
                 </div>
                 <div id="pointShower_${this.index}" draggable="true"></div>
@@ -331,6 +357,27 @@ class PLTelegramChart {
                   </div>
                 </div>
             </div>`
+  }
+
+  getPointTemplate (data) {
+    let content =  '<div>'
+    for ( let key in data ) {
+      switch(key) {
+        case 'left':
+          break;
+        case 'top':
+          break;
+        case 'x':
+          let v = new Date(data[key]);
+          content += `<div class="date">${this.defaults.days[v.getDay()]}, ${v.getDate()} ${this.defaults.months[v.getMonth()]}</div>`;
+          break;
+        default:
+          content += `<div style="color: ${this.data[key].color}">${data[key]}</div>`;
+          break;
+      }
+    }
+    content +=  '</div>';
+    return content;
   }
 
   decreaseWidth (id, x) {
@@ -354,17 +401,12 @@ class PLTelegramChart {
   calculate () {
     let rsc = document.getElementById(`rightControl_${this.index}`),
       lsc = document.getElementById(`leftControl_${this.index}`),
-      c = document.getElementById(`container_${this.index}`),
+      c = document.getElementById(`range_${this.index}`),
       base = parseInt(c.style.width, 10),
       start = parseInt(lsc.style.width, 10)/base,
       end = (base - parseInt(rsc.style.width, 10))/base;
-    this.showPoint();
     this.markers =  { start, end };
-  }
-
-  getStrategy (target) {
-    let id = target.getAttribute('id');
-    return this.strategies[id];
+    this.showPoint();
   }
 
   drawDates() {
@@ -374,22 +416,22 @@ class PLTelegramChart {
     let Start = Math.round(start * this.data['x'].data.length);
     let End = Math.round(end * this.data['x'].data.length);
     let xData = this.data['x'].data;
-    let kx = this.canvas.width / (End - Start);
+    let kx = this.chart.width / (End - Start);
     let width = kx * xData.length ;
     canvas.height = 20;
     canvas.width = width;
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if ( this.canvas.darkMode ) {
+    if ( this.chart.darkMode ) {
       ctx.fillStyle = '#111';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
-    ctx.fillStyle = this.canvas.darkMode ? '#eee' : '#333';
+    ctx.fillStyle = this.chart.darkMode ? '#eee' : '#333';
     let l = xData.length, diff = End - Start;
     let textY = Math.round(canvas.height * 2/3);
     for ( let i=0; i < l; i++ ) {
       if ( i >= Start && i <= End ) {
-        let k = Math.round(this.canvas.width / 40);
+        let k = Math.round(this.chart.width / 40);
         if ( diff > k &&  !( i % Math.ceil(diff/k) ) || diff <= k ) {
           let value = new Date(xData[i]);
           ctx.fillText(`${value.getDate()} ${this.defaults.months[value.getMonth()]}`, kx * i, textY);
@@ -429,7 +471,7 @@ class PLTelegramChart {
     let max = Math.max.apply(null, Max);
     let min = Math.min.apply(null, Min);
     for ( let i =0; i < canvas.height; i = i + d ){
-      ctx.strokeStyle = this.canvas.darkMode ? '#333' : '#eee';
+      ctx.strokeStyle = this.chart.darkMode ? '#333' : '#eee';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, canvas.height - i );
@@ -456,6 +498,8 @@ class PLTelegramChart {
             };
             points.push(point);
           }
+          ctx.strokeStyle = this.chart.darkMode ? '#333' : '#eee';
+          ctx.lineWidth = 1;
           ctx.strokeStyle = this.data[key].color;
           ctx.lineWidth = 1;
           ctx.moveTo(points[0].x, points[0].y);
@@ -469,33 +513,11 @@ class PLTelegramChart {
         }
       }
       for ( let i = 1; i < canvas.height; i = i + d  ){
-        ctx.fillStyle = this.canvas.darkMode ? '#eee' : '#333';
+        ctx.fillStyle = this.chart.darkMode ? '#eee' : '#333';
         ctx.fillText(Math.round(max * ( i + d ) / canvas.height).toString(), 20, canvas.height - i - d/2)
       }
     }
     this.drawDates();
-  }
-
-  getPointTemplate (data) {
-    console.log({data}, this.data)
-    let content =  '<div>'
-    for ( let key in data ) {
-      switch(key) {
-        case 'left':
-          break;
-        case 'top':
-          break;
-        case 'x':
-          let v = new Date(data[key]);
-          content += `<div class="date">${v.getDate()} ${this.defaults.months[v.getMonth()]}</div>`;
-          break;
-        default:
-          content += `<div style="color: ${this.data[key].color}">${data[key]}</div>`;
-          break;
-      }
-    }
-    content +=  '</div>';
-    return content;
   }
 
   showPoint(data) {
@@ -517,7 +539,7 @@ class PLTelegramChart {
 
   drawBackground() {
     let canvas = document.createElement('canvas');
-    canvas.width = this.canvas.width;
+    canvas.width = this.chart.width;
     canvas.height = 40;
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -559,12 +581,12 @@ class PLTelegramChart {
         }
       }
     }
-    let target = document.getElementById(`container_${this.index}`);
+    let target = document.getElementById(`range_${this.index}`);
     target.style.background = `url(${canvas.toDataURL()})`;
   }
 
   initEvents() {
-    let target = document.getElementById(`container_${this.index}`), self = this;
+    let target = document.getElementById(`range_${this.index}`), self = this;
     target.addEventListener('mousedown', function(e){
       e.preventDefault();
       let strategy = self.getStrategy(e.target);
@@ -608,27 +630,28 @@ class PLTelegramChart {
       this.setAttribute('checked', self.darkMode.toString() )
     });
     let canvas = document.getElementById(`chart_${this.index}`);
-    let colorKeys = {};
-    canvas.addEventListener('mousemove', function(e){
-      let ctx = canvas.getContext('2d');
+    let ctx = canvas.getContext('2d');
+    canvas.addEventListener('mousemove', function(e) {
+      e.preventDefault();
       let color = ctx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
       color = "#" +
         ("0" + parseInt(color[1], 10).toString(16)).slice(-2) +
         ("0" + parseInt(color[2], 10).toString(16)).slice(-2) +
         ("0" + parseInt(color[3], 10).toString(16)).slice(-2);
-      if ( color !== '#000000' && color !== '#ffffff' ){
+      if ( color !== '#000000' && color !== '#ffffff' ) {
         canvas.style.cursor = 'pointer';
       } else {
         canvas.style.cursor = 'default';
       }
     });
     canvas.addEventListener('click', function(e) {
+      e.preventDefault();
       if ( canvas.style.cursor === 'pointer' ) {
         let x = e.clientX - canvas.offsetLeft;
         let y = e.offsetY + canvas.offsetTop;
         let { start, end } = self.markers;
         let k = x / canvas.width * (end - start) + start;
-        let data = { left: x, top: y }
+        let data = { left: x, top: y };
         let index = Math.round( self.data.x.data.length * k );
         for ( let key in self.data ) {
           if ( ! self.excludedKeys.includes(key)) {
@@ -656,7 +679,7 @@ class PLTelegramChart {
     }
   }
 
-  static factory(data, options){
+  static factory (data, options) {
     data.map((item, index) => {
       return new PLTelegramChart({
         index,
