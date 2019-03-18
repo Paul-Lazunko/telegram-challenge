@@ -138,7 +138,7 @@ class PLTelegramChart {
 
   getXAcrossEvents (e) {
     let x = e.movementX || 0;
-    if ( !x ) {
+    if ( !x && x !== 0 ) {
       let touch = event.touches[0] || event.changedTouches[0];
       if ( this.touches.length ) {
         x = touch.clientX - this.touches[0];
