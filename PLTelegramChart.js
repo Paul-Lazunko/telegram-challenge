@@ -137,7 +137,7 @@ class PLTelegramChart {
 
   getXAcrossEvents (e) {
     let x = e.movementX;
-    if ( !x ) {
+    if ( !x && x !== 0) {
       let touch = event.touches[0] || event.changedTouches[0];
       x = this.x ? touch.clientX - this.x : 0;
       this.x = touch.clientX;
@@ -493,15 +493,14 @@ class PLTelegramChart {
             points.push(point);
           }
           ctx.strokeStyle = this.data[key].color;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 1;
           ctx.moveTo(points[0].x, points[0].y);
           ctx.beginPath();
-          points.map(point => {
-            ctx.lineTo(point.x, point.y);
+          for ( let j = 0; j < points.length; j++ ) {
+            ctx.lineTo(points[j].x, points[j].y);
             ctx.stroke();
-          });
+          }
           ctx.closePath();
-          this.points[key] = points;
         }
       }
       for ( let i = 1; i < canvas.height; i = i + d  ){
@@ -563,12 +562,12 @@ class PLTelegramChart {
           }
           ctx.strokeStyle = this.data[key].color;
           ctx.lineWidth = 1;
-          ctx.beginPath();
           ctx.moveTo(points[0].x, points[0].y);
-          points.map(point => {
-            ctx.lineTo(point.x, point.y);
+          ctx.beginPath();
+          for ( let j = 0; j < points.length; j++ ) {
+            ctx.lineTo(points[j].x, points[j].y);
             ctx.stroke();
-          });
+          }
           ctx.closePath();
         }
       }
