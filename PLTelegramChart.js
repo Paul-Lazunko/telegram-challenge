@@ -140,14 +140,10 @@ class PLTelegramChart {
     let x = e.movementX;
     if ( !x ) {
       let touch = event.touches[0] || event.changedTouches[0];
-      if ( this.touches.length ) {
-        x = touch.clientX - this.touches[0];
-        this.touches[0] = touch.clientX;
-      } else {
-        this.touches.push(touch.clientX);
-        x = 0;
-      }
+      x = this.x ? touch.clientX - this.x : 0;
+      this.x = touch.clientX;
     }
+
     console.log({x})
     return x;
   }
@@ -606,6 +602,7 @@ class PLTelegramChart {
       if ( strategy ) {
         target.addEventListener('touchmove', strategy );
         target.addEventListener('touchend', (e) => {
+          self.x = false;
           target.removeEventListener('touchmove', strategy);
         });
       }
