@@ -137,7 +137,7 @@ class PLTelegramChart {
   }
 
   getXAcrossEvents (e) {
-    let x = e.movementX || 0;
+    let x = e.movementX;
     if ( !x ) {
       let touch = event.touches[0] || event.changedTouches[0];
       if ( this.touches.length ) {
@@ -354,7 +354,7 @@ class PLTelegramChart {
                    <div class="round" id="switcher_${this.index}">
                     <input id="checkbox_mode_${this.index}" type="checkbox" checked="${this.darkMode}">
                       <label for="checkbox_mode_${this.index}"></label>
-                      <span>DarkMode</span>
+                      <span>Dark mode</span>
                   </div>
                 </div>
             </div>`
