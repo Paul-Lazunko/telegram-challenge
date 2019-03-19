@@ -39,7 +39,6 @@ class PLTelegramChart {
     this.chart = options.chart || this.defaults.canvas;
     this.index = options.index || 0;
     this.touches = [];
-    this.points = {};
     this.parentElementId = options.parentElementId;
     this.checkBoxes = Object.keys(this.data);
     this.excludedKeys = [];
@@ -649,12 +648,33 @@ class PLTelegramChart {
             data[key] = self.data[key].data[index];
           }
         }
-        self.currentPoint = data;
         self.showPoint(data);
       } else {
         self.showPoint();
       }
     });
+    canvas.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      let touch = event.touches[0] || event.changedTouches[0];
+      let x = touch.clientX - canvas.offsetLeft;
+      let y = touch.pageY;
+      let { start, end } = self.markers;
+      let k = x / canvas.width * (end - start) + start;
+      let data = { left: x, top: y };
+      let index = Math.round( self.data.x.data.length * k );
+      console.log({index})
+      for ( let key in self.data ) {
+        if ( ! self.excludedKeys.includes(key)) {
+          data[key] = self.data[key].data[index];
+        }
+      }
+      self.showPoint(data);
+    });
+    let pointShower = document.getElementById(`pointShower_${this.index}`);
+    pointShower.addEventListener('touchend', function(e) {
+      self.showPoint();
+    })
+
   }
 
   render () {
