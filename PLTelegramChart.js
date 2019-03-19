@@ -43,7 +43,6 @@ class PLTelegramChart {
     this.parentElementId = options.parentElementId;
     this.checkBoxes = Object.keys(this.data);
     this.excludedKeys = [];
-    this.lastX = 0;
     this._markers = { start: 0, end: 1 };
 
     this.setStrategies();
@@ -93,14 +92,14 @@ class PLTelegramChart {
 
   setStrategies () {
     let base = this.chart.width;
-    let k = (this.chart.controlsWidth*2)/base;
+    let k = ( this.chart.controlsWidth * 2 ) / base;
     this.strategies = {};
     this.strategies[`rightSubControl_${this.index}`] =  (e) => {
       let x = this.getXAcrossEvents(e);
       if ( this.markers.start < this.markers.end - 2 * k ) {
         this.decreaseWidth(`rightControl_${this.index}`, x);
       } else if ( x < 0 ) {
-        if ( this.markers.start > 0 ) {
+        if ( this.markers.start > 0 && Math.abs(x) < k) {
           this.decreaseWidth(`rightControl_${this.index}`, x);
           this.increaseWidth(`leftControl_${this.index}`, x);
         }
@@ -112,8 +111,8 @@ class PLTelegramChart {
       let x = this.getXAcrossEvents(e);
       if ( this.markers.start < this.markers.end - 2 * k ) {
         this.increaseWidth(`leftControl_${this.index}`, x);
-      } else if ( x > 0 ) {
-        if ( this.markers.end  < 1) {
+      } else if ( x > 0  ) {
+        if ( this.markers.end  < 1 && x < k ) {
           this.decreaseWidth(`rightControl_${this.index}`, x);
           this.increaseWidth(`leftControl_${this.index}`, x);
         }
@@ -143,8 +142,6 @@ class PLTelegramChart {
       x = this.x ? touch.clientX - this.x : 0;
       this.x = touch.clientX;
     }
-
-    console.log({x})
     return x;
   }
 
@@ -495,10 +492,8 @@ class PLTelegramChart {
             };
             points.push(point);
           }
-          ctx.strokeStyle = this.chart.darkMode ? '#333' : '#eee';
-          ctx.lineWidth = 1;
           ctx.strokeStyle = this.data[key].color;
-          ctx.lineWidth = 1;
+          ctx.lineWidth = 2;
           ctx.moveTo(points[0].x, points[0].y);
           ctx.beginPath();
           points.map(point => {
