@@ -39,11 +39,12 @@ class PLTelegramChart {
     this.chart = options.chart || this.defaults.canvas;
     this.index = options.index || 0;
     this.touches = [];
+    this.points = {};
     this.parentElementId = options.parentElementId;
     this.checkBoxes = Object.keys(this.data);
     this.excludedKeys = [];
     this._markers = { start: 0, end: 1 };
-
+    this.chartYData = { max: 1, min: 0 }
     this.setStrategies();
     this.overrideMethodsForExcludedKeys();
   }
@@ -279,7 +280,6 @@ class PLTelegramChart {
             transform: rotate(-45deg);
             width: 12px;
         }
-
         #Chart_${this.index} .round input[type="checkbox"] {
             visibility: hidden;
         }
@@ -287,8 +287,7 @@ class PLTelegramChart {
         #Chart_${this.index} .round input[type="checkbox"]:checked + label:after {
             opacity: 1;
         }
-
-         #Chart_${this.index} .round span {
+        #Chart_${this.index} .round span {
             display: inline-block;
             min-width: 40px;
             margin-left: 10px;
@@ -301,8 +300,6 @@ class PLTelegramChart {
         #Chart_${this.index} #dates_holder_${this.index} {
             width: ${this.chart.width}px;
             height: 20px; 
-            cursor: pointer;         
-
         }   
         #Chart_${this.index} #pointShower_${this.index} {
             position: absolute;
@@ -315,6 +312,23 @@ class PLTelegramChart {
         #pointShower_${this.index} .date {
             font-weight: bold;
             color: ${this.chart.darkMode ? '#eee': '#333'}
+        }
+        #pointShower_${this.index} .date {
+            font-weight: bold;
+            color: ${this.chart.darkMode ? '#eee': '#333'}
+        } 
+        #verticalLine_${this.index} {
+            position: absolute;
+            width: 1px;
+            height: ${this.chart.height}px;
+            margin-top: -${this.chart.height + 66}px;
+            background-color: ${this.chart.darkMode ? '#eee': '#333'}
+        }
+        #pointsHolder_${this.index} {
+            position: absolute;
+            width: 8px;
+            height: ${this.chart.height}px;
+            margin-top: -${this.chart.height + 66}px;
         }
     </style>`
 
@@ -340,7 +354,9 @@ class PLTelegramChart {
                   <div class="rightControl" id="rightControl_${this.index}" style="width: ${Math.round(this.chart.width/4)}px;"></div>
                   <div class="rightSubControl" id="rightSubControl_${this.index}"></div>
                 </div>
-                <div id="pointShower_${this.index}" draggable="true"></div>
+                <div id="verticalLine_${this.index}"></div>
+                <div id="pointsHolder_${this.index}"></div>
+                <div id="pointShower_${this.index}"></div>
                 <div class="checkboxHolder">
                    ${this.getCheckBoxesTemplate()}
                    <div class="round" id="switcher_${this.index}">
@@ -463,6 +479,7 @@ class PLTelegramChart {
     }
     let max = Math.max.apply(null, Max);
     let min = Math.min.apply(null, Min);
+    this.chartYData = { max, min }
     for ( let i =0; i < canvas.height; i = i + d ){
       ctx.strokeStyle = this.chart.darkMode ? '#333' : '#eee';
       ctx.lineWidth = 1;
@@ -491,6 +508,7 @@ class PLTelegramChart {
             };
             points.push(point);
           }
+          this.points[key] = points;
           ctx.strokeStyle = this.data[key].color;
           ctx.lineWidth = 1;
           ctx.moveTo(points[0].x, points[0].y);
@@ -504,7 +522,7 @@ class PLTelegramChart {
       }
       for ( let i = 1; i < canvas.height; i = i + d  ){
         ctx.fillStyle = this.chart.darkMode ? '#eee' : '#333';
-        ctx.fillText(Math.round(max * ( i + d ) / canvas.height).toString(), 20, canvas.height - i - d/2)
+        ctx.fillText(Math.round(max * ( i + d ) / canvas.height).toString(), 20, canvas.height - i - d + 15)
       }
     }
     this.drawDates();
@@ -512,7 +530,7 @@ class PLTelegramChart {
 
   showPoint(data) {
     let pointShower = document.getElementById(`pointShower_${this.index}`);
-    if ( data ) {
+    if ( data && Object.keys(data).length > 3 ) {
       pointShower.style.left = data.left + 'px';
       pointShower.style.top = data.top + 'px';
       let template = document.createElement('template');
@@ -620,61 +638,112 @@ class PLTelegramChart {
       this.setAttribute('checked', self.darkMode.toString() )
     });
     let canvas = document.getElementById(`chart_${this.index}`);
-    let ctx = canvas.getContext('2d');
-    canvas.addEventListener('mousemove', function(e) {
-      e.preventDefault();
-      let color = ctx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
-      color = "#" +
-        ("0" + parseInt(color[1], 10).toString(16)).slice(-2) +
-        ("0" + parseInt(color[2], 10).toString(16)).slice(-2) +
-        ("0" + parseInt(color[3], 10).toString(16)).slice(-2);
-      if ( color !== '#000000' && color !== '#ffffff' ) {
-        canvas.style.cursor = 'pointer';
-      } else {
-        canvas.style.cursor = 'default';
-      }
+    let line = document.getElementById(`verticalLine_${this.index}`);
+    let pointsHolder = document.getElementById(`pointsHolder_${this.index}`);
+    canvas.addEventListener('mouseenter', function(e) {
+      line.style.display = "block";
+      pointsHolder.style.display = "block";
     });
-    canvas.addEventListener('click', function(e) {
-      e.preventDefault();
-      if ( canvas.style.cursor === 'pointer' ) {
-        let x = e.clientX - canvas.offsetLeft;
-        let y = e.offsetY + canvas.offsetTop;
-        let { start, end } = self.markers;
-        let k = x / canvas.width * (end - start) + start;
-        let data = { left: x, top: y };
-        let index = Math.round( self.data.x.data.length * k );
-        for ( let key in self.data ) {
-          if ( ! self.excludedKeys.includes(key)) {
-            data[key] = self.data[key].data[index];
+    canvas.addEventListener('touchstart', function(e) {
+
+    });
+    let mouseLeave = function(e) {
+      let checkX = e.pageX < canvas.offsetLeft || e.pageX > canvas.offsetLeft + canvas.width;
+      let checkY = e.pageY < canvas.offsetTop || e.pageY > canvas.offsetTop + canvas.height;
+      if ((checkX || checkY) || e.changedTouches) {
+        line.style.display = "none";
+        pointsHolder.style.display = "none";
+        self.showPoint()
+      }
+    };
+    canvas.addEventListener('mouseleave', mouseLeave);
+    pointsHolder.addEventListener('mouseleave', mouseLeave);
+    pointsHolder.addEventListener('touchend', mouseLeave);
+    canvas.addEventListener('touchend', mouseLeave);
+    let previousY = {};
+    canvas.addEventListener('mousemove', function(e) {
+      let x = e.clientX;
+      let y = e.clientY;
+      let X = e.clientX - canvas.offsetLeft;
+      let { start, end } = self.markers;
+      let k = X / canvas.width * (end - start);
+      let k2 = X / canvas.width * (end - start) + start;
+      let g = self.data.x.data.length * k;
+      let index =  Math.round(g);
+      let Index = Math.round(k2*self.data['x'].data.length)
+      let data = { left: x + 30, top: y };
+      data['x'] = self.data['x'].data[Index];
+      pointsHolder.innerHTML = '';
+      let { max, min } = self.chartYData;
+      for ( let key in self.points ) {
+        let show = index > 0 && index < self.points[key].length - 1;
+        if (! self.excludedKeys.includes(key) && show ) {
+          if (  key !== 'x' ) {
+            data[key] = Math.round((canvas.height - self.points[key][index].y) * (max - min)/self.chart.height);
+            let element = document.createElement('span');
+            element.style.width = '20px';
+            element.style.boxSizing = 'border-box';
+            element.style.height = '20px';
+            element.style.borderRadius = '100%';
+            element.style.border = `2px solid ${self.data[key].color}`;
+            element.style.position = `absolute`;
+            let ik = previousY[key] ? (previousY[key] +11 - self.points[key][index].y) * (g%1) : 0;
+            element.style.top = self.points[key][index].y + ik -11 + 'px';
+            element.style.left = '-11px';
+            element.style.background = self.chart.darkMode ? '#111': '#eee';
+            previousY[key] = self.points[key][index].y - 11;
+            pointsHolder.appendChild(element);
           }
         }
-        self.showPoint(data);
-      } else {
-        self.showPoint();
       }
-    });
-    canvas.addEventListener('touchend', function(e) {
-      e.preventDefault();
-      let touch = event.touches[0] || event.changedTouches[0];
-      let x = touch.clientX - canvas.offsetLeft;
-      let y = touch.pageY;
-      let { start, end } = self.markers;
-      let k = x / canvas.width * (end - start) + start;
-      let data = { left: x, top: y };
-      let index = Math.round( self.data.x.data.length * k );
-      console.log({index})
-      for ( let key in self.data ) {
-        if ( ! self.excludedKeys.includes(key)) {
-          data[key] = self.data[key].data[index];
-        }
-      }
+      line.style.left = x + 'px';
+      pointsHolder.style.left = x + 'px';
       self.showPoint(data);
     });
-    let pointShower = document.getElementById(`pointShower_${this.index}`);
-    pointShower.addEventListener('touchend', function(e) {
-      self.showPoint();
-    })
+    canvas.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+      line.style.display = "block";
+      pointsHolder.style.display = "block";
+      let touch = event.touches[0] || event.changedTouches[0];
+      let x = touch.clientX - canvas.offsetLeft;
+      let y = touch.clientY;
+      let Y = touch.pageY;
+      let { start, end } = self.markers;
+      let k = x / canvas.width * (end - start);
+      let k2 = x / canvas.width * (end - start) + start;
+      let g = self.data.x.data.length * k;
+      let index =  Math.round(g);
+      let Index = Math.round(k2*self.data['x'].data.length);
+      let data = { left: x + 60, top: Y };
+      data['x'] = self.data['x'].data[Index];
+      pointsHolder.innerHTML = '';
+      let { max, min } = self.chartYData;
+      for ( let key in self.points ) {
+        let show = index > 0 && index < self.points[key].length - 1;
+        if (! self.excludedKeys.includes(key) && show ) {
+          if (  key !== 'x' ) {
+            data[key] = Math.round((canvas.height - self.points[key][index].y) * (max - min)/self.chart.height);
+            let element = document.createElement('span');
+            element.style.width = '20px';
+            element.style.boxSizing = 'border-box';
+            element.style.height = '20px';
+            element.style.borderRadius = '100%';
+            element.style.border = `2px solid ${self.data[key].color}`;
+            element.style.position = `absolute`;
+            let ik = previousY[key] ? (previousY[key] +11 - self.points[key][index].y) * (g%1) : 0;
+            element.style.top = self.points[key][index].y + ik -11 + 'px';
+            element.style.left = '-11px';
+            element.style.background = self.chart.darkMode ? '#111': '#eee';
+            previousY[key] = self.points[key][index].y - 11;
+            pointsHolder.appendChild(element);
+          }
+        }
+      }
+      line.style.left = x + 30 + 'px';
+      pointsHolder.style.left = x + 30 + 'px';
+      self.showPoint(data);
 
+    });
   }
 
   render () {
