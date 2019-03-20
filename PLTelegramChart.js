@@ -644,9 +644,6 @@ class PLTelegramChart {
       line.style.display = "block";
       pointsHolder.style.display = "block";
     });
-    canvas.addEventListener('touchstart', function(e) {
-
-    });
     let mouseLeave = function(e) {
       let checkX = e.pageX < canvas.offsetLeft || e.pageX > canvas.offsetLeft + canvas.width;
       let checkY = e.pageY < canvas.offsetTop || e.pageY > canvas.offsetTop + canvas.height;
@@ -714,7 +711,7 @@ class PLTelegramChart {
       let g = self.data.x.data.length * k;
       let index =  Math.round(g);
       let Index = Math.round(k2*self.data['x'].data.length);
-      let data = { left: x + 60, top: Y };
+      let data = { left: x + 100, top: Y };
       data['x'] = self.data['x'].data[Index];
       pointsHolder.innerHTML = '';
       let { max, min } = self.chartYData;
@@ -741,8 +738,13 @@ class PLTelegramChart {
       }
       line.style.left = x + 30 + 'px';
       pointsHolder.style.left = x + 30 + 'px';
-      self.showPoint(data);
-
+      if ( Object.keys(data).length > 3) {
+        self.showPoint(data);
+      } else {
+        line.style.display = "none";
+        pointsHolder.style.display = "none";
+        self.showPoint()
+      }
     });
   }
 
