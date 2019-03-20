@@ -668,7 +668,7 @@ class PLTelegramChart {
       let g = self.data.x.data.length * k;
       let index =  Math.round(g);
       let Index = Math.round(k2*self.data['x'].data.length)
-      let data = { left: x + 30, top: y };
+      let data = { left: x + 30, top: e.offsetY + canvas.offsetTop };
       data['x'] = self.data['x'].data[Index];
       pointsHolder.innerHTML = '';
       let { max, min } = self.chartYData;
@@ -711,7 +711,7 @@ class PLTelegramChart {
       let g = self.data.x.data.length * k;
       let index =  Math.round(g);
       let Index = Math.round(k2*self.data['x'].data.length);
-      let data = { left: x + 100, top: Y };
+      let data = { left: x + 60, top: Y };
       data['x'] = self.data['x'].data[Index];
       pointsHolder.innerHTML = '';
       let { max, min } = self.chartYData;
