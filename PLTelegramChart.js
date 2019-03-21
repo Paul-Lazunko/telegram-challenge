@@ -468,7 +468,6 @@ class PLTelegramChart {
       ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let Max = [], Min = [];
-    let d = Math.round(canvas.height / 5);
     for ( let key in this.data ) {
       if ( ! this.defaults.exceptionKeys.includes(key) && !this.excludedKeys.includes(key)) {
         let max = Math.max.apply(null, this.data[key].data);
@@ -480,6 +479,8 @@ class PLTelegramChart {
     let max = Math.max.apply(null, Max);
     let min = Math.min.apply(null, Min);
     this.chartYData = { max, min };
+    let d = Math.round(canvas.height / 5);
+
     for ( let i =0; i < canvas.height; i = i + d ){
       ctx.strokeStyle = this.chart.darkMode ? '#333' : '#eee';
       ctx.lineWidth = 1;
@@ -501,7 +502,6 @@ class PLTelegramChart {
           let yData = this.data[key].data.slice(start, end);
           let xData = this.data['x'].data.slice(start, end);
           let kx = canvas.width / xData.length;
-          let ky2 = canvas.width / yData.length;
           for (let i=0; i < yData.length; i++ ){
             let point = {
               x:  Math.round(kx * i),
@@ -514,10 +514,10 @@ class PLTelegramChart {
           ctx.lineWidth = 1;
           ctx.moveTo(points[0].x, points[0].y);
           ctx.beginPath();
-          if ( points.length < 31 ) {
+          if ( points.length < Math.round(this.chart.width / 20) ) {
             for ( let j = 0; j < points.length; j++ ) {
-              ctx.lineTo(Math.round(points[j].x - kx/2+20), Math.round(points[j].y));
-              ctx.lineTo(Math.round(points[j].x + kx/2+20), Math.round(points[j].y));
+              ctx.lineTo(Math.round(points[j].x - kx/2), Math.round(points[j].y));
+              ctx.lineTo(Math.round(points[j].x + kx/2), Math.round(points[j].y));
             }
           } else {
             for ( let j = 0; j < points.length; j++ ) {
@@ -530,10 +530,11 @@ class PLTelegramChart {
           ctx.closePath();
         }
       }
-      for ( let i = 1; i < canvas.height; i = i + d  ){
-        ctx.fillStyle = this.chart.darkMode ? '#eee' : '#333';
-        let y = canvas.height - i - d/2 -4;
-        ctx.fillText(Math.round(max * ( i + d ) / canvas.height).toString(), 20, y)
+      let e = (max - min)/5;
+      ctx.fillStyle = this.chart.darkMode ? '#eee' : '#333';
+      for ( let i = 1, j = 0; i < canvas.height; i = i + d, j++ ){
+        let y = canvas.height - i + 20;
+        ctx.fillText(Math.round(min + e*j).toString(), 20, y)
       }
     }
     this.drawDates();
@@ -684,7 +685,6 @@ class PLTelegramChart {
         let data = { left: x + 30, top: e.offsetY + canvas.offsetTop };
         data['x'] = self.data['x'].data[Index];
         pointsHolder.innerHTML = '';
-        let { max, min } = self.chartYData;
         for ( let key in self.points ) {
           let show = index > 0 && index < self.points[key].length - 1;
           if (! self.excludedKeys.includes(key) && show ) {
@@ -728,7 +728,6 @@ class PLTelegramChart {
       let data = { left: x + 120, top: Y };
       data['x'] = self.data['x'].data[Index];
       pointsHolder.innerHTML = '';
-      let { max, min } = self.chartYData;
       for ( let key in self.points ) {
         let show = index > 0 && index < self.points[key].length - 1;
         if (! self.excludedKeys.includes(key) && show ) {
