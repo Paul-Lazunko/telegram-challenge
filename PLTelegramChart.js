@@ -595,8 +595,8 @@ class PLTelegramChart {
           ctx.beginPath();
           for ( let j = 0; j < points.length; j++ ) {
             ctx.lineTo(points[j].x, points[j].y);
-            ctx.stroke();
           }
+          ctx.stroke();
           ctx.closePath();
         }
       }
