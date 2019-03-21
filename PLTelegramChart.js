@@ -501,9 +501,10 @@ class PLTelegramChart {
           let yData = this.data[key].data.slice(start, end);
           let xData = this.data['x'].data.slice(start, end);
           let kx = canvas.width / xData.length;
+          let ky2 = canvas.width / yData.length;
           for (let i=0; i < yData.length; i++ ){
             let point = {
-              x: i === yData.length - 1 ? canvas.width : Math.round(kx * i),
+              x:  Math.round(kx * i),
               y:  (canvas.height - Math.round(ky * (yData[i] - min)))
             };
             points.push(point);
@@ -515,9 +516,8 @@ class PLTelegramChart {
           ctx.beginPath();
           if ( points.length < 31 ) {
             for ( let j = 0; j < points.length; j++ ) {
-              ctx.lineTo(points[j].x - kx/2, points[j].y);
-              ctx.lineTo(points[j].x + kx/2, points[j].y);
-              ctx.stroke();
+              ctx.lineTo(points[j].x - kx/2+20, points[j].y);
+              ctx.lineTo(points[j].x + kx/2+20, points[j].y);
             }
           } else {
             for ( let j = 0; j < points.length; j++ ) {
@@ -525,12 +525,15 @@ class PLTelegramChart {
               ctx.stroke();
             }
           }
+          ctx.lineTo(this.chart.width, points[points.length - 1].y);
+          ctx.stroke();
           ctx.closePath();
         }
       }
       for ( let i = 1; i < canvas.height; i = i + d  ){
         ctx.fillStyle = this.chart.darkMode ? '#eee' : '#333';
-        ctx.fillText(Math.round(max * ( i + d ) / canvas.height).toString(), 20, canvas.height - i - d + 15)
+        let y = canvas.height - i - d/2 -4;
+        ctx.fillText(Math.round(max * ( i + d ) / canvas.height).toString(), 20, y)
       }
     }
     this.drawDates();
@@ -686,7 +689,7 @@ class PLTelegramChart {
           let show = index > 0 && index < self.points[key].length - 1;
           if (! self.excludedKeys.includes(key) && show ) {
             if (  key !== 'x' ) {
-              data[key] = Math.round((canvas.height - self.points[key][index].y) * (max - min)/self.chart.height);
+              data[key] = self.data[key].data[Index];
               let element = document.createElement('span');
               element.style.width = '20px';
               element.style.boxSizing = 'border-box';
@@ -730,7 +733,7 @@ class PLTelegramChart {
         let show = index > 0 && index < self.points[key].length - 1;
         if (! self.excludedKeys.includes(key) && show ) {
           if (  key !== 'x' ) {
-            data[key] = Math.round( (canvas.height - self.points[key][index].y) * (max - min)/self.chart.height);
+            data[key] = self.data[key].data[Index];
             let element = document.createElement('span');
             element.style.width = '20px';
             element.style.boxSizing = 'border-box';
