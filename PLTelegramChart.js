@@ -479,7 +479,7 @@ class PLTelegramChart {
     }
     let max = Math.max.apply(null, Max);
     let min = Math.min.apply(null, Min);
-    this.chartYData = { max, min }
+    this.chartYData = { max, min };
     for ( let i =0; i < canvas.height; i = i + d ){
       ctx.strokeStyle = this.chart.darkMode ? '#333' : '#eee';
       ctx.lineWidth = 1;
@@ -516,12 +516,12 @@ class PLTelegramChart {
           ctx.beginPath();
           if ( points.length < 31 ) {
             for ( let j = 0; j < points.length; j++ ) {
-              ctx.lineTo(points[j].x - kx/2+20, points[j].y);
-              ctx.lineTo(points[j].x + kx/2+20, points[j].y);
+              ctx.lineTo(Math.round(points[j].x - kx/2+20), Math.round(points[j].y));
+              ctx.lineTo(Math.round(points[j].x + kx/2+20), Math.round(points[j].y));
             }
           } else {
             for ( let j = 0; j < points.length; j++ ) {
-              ctx.lineTo(points[j].x, points[j].y);
+              ctx.lineTo(Math.round(points[j].x), Math.round(points[j].y));
               ctx.stroke();
             }
           }
