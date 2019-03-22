@@ -478,9 +478,7 @@ class PLTelegramChart {
     }
     let max = Math.max.apply(null, Max);
     let min = Math.min.apply(null, Min);
-    this.chartYData = { max, min };
     let d = Math.round(canvas.height / 5);
-
     for ( let i =0; i < canvas.height; i = i + d ){
       ctx.strokeStyle = this.chart.darkMode ? '#333' : '#eee';
       ctx.lineWidth = 1;
@@ -522,7 +520,6 @@ class PLTelegramChart {
           } else {
             for ( let j = 0; j < points.length; j++ ) {
               ctx.lineTo(Math.round(points[j].x), Math.round(points[j].y));
-              ctx.stroke();
             }
           }
           ctx.lineTo(this.chart.width, points[points.length - 1].y);
@@ -674,7 +671,6 @@ class PLTelegramChart {
     canvas.addEventListener('mousemove', function(e) {
       if ( e.movementX) {
         let x = e.clientX;
-        let y = e.clientY;
         let X = e.clientX - canvas.offsetLeft;
         let { start, end } = self.markers;
         let k = X / canvas.width * (end - start);
@@ -699,7 +695,7 @@ class PLTelegramChart {
               element.style.position = `absolute`;
               let ik = previousY[key] ? (previousY[key] +11 - self.points[key][index].y) * (g%1) : 0;
               element.style.top = self.points[key][index].y + ik -11 + 'px';
-              element.style.left = '-11px';
+              element.style.left = '-13px';
               element.style.background = self.chart.darkMode ? '#111': '#eee';
               previousY[key] = self.points[key][index].y - 11;
               pointsHolder.appendChild(element);
@@ -741,7 +737,7 @@ class PLTelegramChart {
             element.style.border = `2px solid ${self.data[key].color}`;
             element.style.position = `absolute`;
             element.style.top = self.points[key][index].y - 11 + 'px';
-            element.style.left = '-11px';
+            element.style.left = '-13px';
             element.style.background = self.chart.darkMode ? '#111': '#eee';
             previousY[key] = self.points[key][index].y - 11;
             pointsHolder.appendChild(element);
