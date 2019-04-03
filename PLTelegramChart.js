@@ -318,6 +318,7 @@ class PLTelegramChart {
             color: ${this.chart.darkMode ? '#eee': '#333'}
         } 
         #verticalLine_${this.index} {
+            display: none;
             position: absolute;
             width: 1px;
             height: ${this.chart.height}px;
@@ -438,13 +439,11 @@ class PLTelegramChart {
     ctx.fillStyle = this.chart.darkMode ? '#eee' : '#333';
     let l = xData.length, diff = End - Start;
     let textY = Math.round(canvas.height * 2/3);
-    for ( let i=0; i < l; i++ ) {
-      if ( i >= Start && i <= End ) {
-        let k = Math.round(this.chart.width / 40);
-        if ( diff > k &&  !( i % Math.ceil(diff/k) ) || diff <= k ) {
-          let value = new Date(xData[i]);
-          ctx.fillText(`${value.getDate()} ${this.defaults.months[value.getMonth()]}`, kx * i, textY);
-        }
+    for ( let i = Start; i <= End; i++ ) {
+      let k = Math.round(this.chart.width / 40);
+      if ( diff > k &&  !( i % Math.ceil(diff/k) ) || diff <= k ) {
+        let value = new Date(xData[i]);
+        ctx.fillText(`${value.getDate()} ${this.defaults.months[value.getMonth()]}`, kx * i, textY);
       }
     }
     target.style.background = `url(${canvas.toDataURL()})`;
@@ -454,7 +453,6 @@ class PLTelegramChart {
     if ( parseInt(lc.style.width, 10) >= 70 ) {
       lc.innerText = `from ${new Date(xData[Start]).getDate()} ${this.defaults.months[new Date(xData[Start]).getMonth()]}`;
     }
-
     let rc = document.getElementById(`rightControl_${this.index}`);
     rc.innerText = '';
     if ( parseInt(rc.style.width, 10) >= 70 ) {
@@ -649,6 +647,7 @@ class PLTelegramChart {
     });
     let canvas = document.getElementById(`chart_${this.index}`);
     let line = document.getElementById(`verticalLine_${this.index}`);
+    line.style.display = 'none';
     let pointsHolder = document.getElementById(`pointsHolder_${this.index}`);
     canvas.addEventListener('mouseenter', function(e) {
       line.style.display = "block";
@@ -669,7 +668,7 @@ class PLTelegramChart {
     canvas.addEventListener('touchend', mouseLeave);
     let previousY = {};
     canvas.addEventListener('mousemove', function(e) {
-      if ( e.movementX) {
+      if ( e.movementX ) {
         let x = e.clientX;
         let X = e.clientX - canvas.offsetLeft;
         let { start, end } = self.markers;
