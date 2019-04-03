@@ -306,7 +306,7 @@ class PLTelegramChart {
             background: ${this.chart.darkMode ? '#333': '#eee'};
             border-radius: 10px;
             border: 1px solid ${this.chart.darkMode ? '#eee': '#333'};
-            width: 90px;
+            width: 100px;
             padding: 10px;
         }  
         #pointShower_${this.index} .date {
