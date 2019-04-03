@@ -423,8 +423,8 @@ class PLTelegramChart {
     let target = document.getElementById(`dates_holder_${this.index}`);
     let canvas = document.createElement('canvas');
     let { start, end } = this.markers;
-    let Start = Math.round(start * this.data['x'].data.length);
-    let End = Math.round(end * this.data['x'].data.length);
+    let Start = Math.floor(start * this.data['x'].data.length);
+    let End = Math.ceil(end * this.data['x'].data.length);
     let xData = this.data['x'].data;
     let kx = this.chart.width / (End - Start);
     let width = kx * xData.length ;
@@ -694,7 +694,7 @@ class PLTelegramChart {
               element.style.position = `absolute`;
               let ik = previousY[key] ? (previousY[key] +11 - self.points[key][index].y) * (g%1) : 0;
               element.style.top = self.points[key][index].y + ik -11 + 'px';
-              element.style.left = '-13px';
+              element.style.left = '-11px';
               element.style.background = self.chart.darkMode ? '#111': '#eee';
               previousY[key] = self.points[key][index].y - 11;
               pointsHolder.appendChild(element);
@@ -736,7 +736,7 @@ class PLTelegramChart {
             element.style.border = `2px solid ${self.data[key].color}`;
             element.style.position = `absolute`;
             element.style.top = self.points[key][index].y - 11 + 'px';
-            element.style.left = '-13px';
+            element.style.left = '-11px';
             element.style.background = self.chart.darkMode ? '#111': '#eee';
             previousY[key] = self.points[key][index].y - 11;
             pointsHolder.appendChild(element);
