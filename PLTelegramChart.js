@@ -466,14 +466,20 @@ class PLTelegramChart {
       ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let Max = [], Min = [];
+
     for ( let key in this.data ) {
       if ( ! this.defaults.exceptionKeys.includes(key) && !this.excludedKeys.includes(key)) {
-        let max = Math.max.apply(null, this.data[key].data);
-        let min = Math.min.apply(null, this.data[key].data);
+        let { start, end } = this.markers;
+        start = Math.round(start * this.data[key].data.length);
+        end = Math.round(end * this.data[key].data.length);
+        let yData = this.data[key].data.slice(start, end);
+        let max = Math.max.apply(null, yData);
+        let min = Math.min.apply(null, yData);
         Max.push(max);
         Min.push(min);
       }
     }
+
     let max = Math.max.apply(null, Max);
     let min = Math.min.apply(null, Min);
     let d = Math.round(canvas.height / 5);
@@ -490,7 +496,7 @@ class PLTelegramChart {
     if ( Object.keys(this.data).length >  this.excludedKeys.length  + this.defaults.exceptionKeys.length) {
       for ( let key in this.data ) {
         if ( ! this.defaults.exceptionKeys.includes(key) && ! this.excludedKeys.includes(key)) {
-          let ky = canvas.height / (max - min ) * 0.9;
+          let ky = canvas.height / (max - min );
           let { start, end } = this.markers;
           start = Math.round(start * this.data[key].data.length);
           end = Math.round(end * this.data[key].data.length);
