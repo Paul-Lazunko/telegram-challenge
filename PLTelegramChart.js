@@ -44,14 +44,13 @@ class PLTelegramChart {
     this.checkBoxes = Object.keys(this.data);
     this.excludedKeys = [];
     this._markers = { start: 0, end: 1 };
-    this.chartYData = { max: 1, min: 0 }
     this.setStrategies();
     this.overrideMethodsForExcludedKeys();
   }
 
   set markers ( value ) {
     this._markers = value;
-    this.drawChart();
+    this.draw();
   }
 
   get markers () {
@@ -61,12 +60,17 @@ class PLTelegramChart {
   set darkMode (v) {
     this.chart.darkMode = v;
     this.setStyles();
-    this.drawBackground();
-    this.drawChart();
+    this.draw();
   }
 
   get darkMode () {
     return this.chart.darkMode;
+  }
+
+  draw() {
+    this.setBackground();
+    this.drawChart();
+    this.drawDates();
   }
 
   overrideMethodsForExcludedKeys() {
@@ -74,8 +78,7 @@ class PLTelegramChart {
       enumerable: false,
       value: (v) => {
         Array.prototype.push.apply( this.excludedKeys, [v] );
-        this.drawChart();
-        this.drawBackground();
+        this.draw();
         this.showPoint();
       }
     });
@@ -83,56 +86,97 @@ class PLTelegramChart {
       enumerable: false,
       value: (start, length) => {
         Array.prototype.splice.apply( this.excludedKeys, [start, length] );
-        this.drawChart();
-        this.drawBackground();
+        this.draw();
         this.showPoint();
       }
     });
   };
 
+  set chartData(data){
+    this.previouseState = Object.assign({}, this._chartData);
+    this._chartData = data;
+  }
+
+  get chartData(){
+    return this._chartData;
+  }
+
   setStrategies () {
     let base = this.chart.width;
     let k = ( this.chart.controlsWidth * 2 ) / base;
     this.strategies = {};
-    this.strategies[`rightSubControl_${this.index}`] =  (e) => {
+    this.strategies.growLeft = (e) => {
       let x = this.getXAcrossEvents(e);
-      if ( this.markers.start < this.markers.end - 2 * k ) {
-        this.decreaseWidth(`rightControl_${this.index}`, x);
-      } else if ( x < 0 ) {
-        if ( this.markers.start > 0 && Math.abs(x) < k) {
-          this.decreaseWidth(`rightControl_${this.index}`, x);
-          this.increaseWidth(`leftControl_${this.index}`, x);
-        }
-      } else {
-        this.decreaseWidth(`rightControl_${this.index}`, x);
-      }
+      this.growLeft(x);
     };
-    this.strategies[`leftSubControl_${this.index}`] = (e) => {
+    this.strategies.growRight = (e) => {
       let x = this.getXAcrossEvents(e);
-      if ( this.markers.start < this.markers.end - 2 * k ) {
-        this.increaseWidth(`leftControl_${this.index}`, x);
-      } else if ( x > 0  ) {
-        if ( this.markers.end  < 1 && x < k ) {
-          this.decreaseWidth(`rightControl_${this.index}`, x);
-          this.increaseWidth(`leftControl_${this.index}`, x);
-        }
-      } else {
-        this.increaseWidth(`leftControl_${this.index}`, x);
-      }
+      this.growRight(x);
     };
-    this.strategies[`range_${this.index}`] = (e) => {
+    this.strategies.move = (e) => {
       let x = this.getXAcrossEvents(e);
-      if ( this.markers.start - k/6 > 0 && x < 0 || this.markers.end + k/6 < 1 && x > 0 ) {
-        this.increaseWidth(`leftControl_${this.index}`, x);
-        this.decreaseWidth(`rightControl_${this.index}`, x);
-      }
-
-    };
+      this.move(x);
+    }
   }
 
-  getStrategy (target) {
-    let id = target.getAttribute('id');
-    return this.strategies[id];
+  growLeft (x) {
+    let element = document.getElementById(`control_${this.index}`);
+    if(element && (x > 0 && this.markers.end > this.markers.start +0.2 || x < 0 && this.markers.start > 0.04)){
+      let width = element.style.width;
+      let ml = element.style.marginLeft;
+      element.style.width = parseInt(width, 10) - x + 'px';
+      element.style.marginLeft = parseInt(ml, 10) + x + 'px';
+      element.style.backgroundPosition = `left ${this.chart.width - parseInt(element.style.marginLeft,10)}px top`;
+    }
+    this.calculate();
+  }
+
+  growRight (x) {
+    let element = document.getElementById(`control_${this.index}`);
+    if(element && (x < 0 && this.markers.end > this.markers.start +0.2 || x > 0 && this.markers.end < 1) ){
+      let width = element.style.width;
+      element.style.width = parseInt(width, 10) + x + 'px';
+    }
+    this.calculate();
+  }
+
+  move(x){
+    let element = document.getElementById(`control_${this.index}`);
+    if(element && (x > 0 && this.markers.end < 1 || x < 0 && this.markers.start > 0.04)){
+      let ml = element.style.marginLeft;
+      element.style.marginLeft = parseInt(ml, 10) + x + 'px';
+      element.style.backgroundPosition = `left ${this.chart.width - parseInt(element.style.marginLeft,10)}px top`;
+    }
+    this.calculate();
+  }
+
+  calculate () {
+    let control = document.getElementById(`control_${this.index}`),
+      cr = control.getBoundingClientRect(),
+      offset = 20,
+      base = this.chart.width,
+      start = cr.left/base,
+      end = (cr.left + cr.width - offset)/base;
+    this.markers =  { start, end };
+    this.showPoint();
+  }
+
+  getStrategy (e) {
+    let control = document.getElementById(`control_${this.index}`);
+    let data = control.getBoundingClientRect();
+    let x = e.clientX || e.changedTouches[0].clientX;
+    if ( x > data.left && x < data.left + data.width ) {
+      let perCentWidth = (x - data.left)/data.width;
+      let k = 40 / this.chart.width;
+      if ( perCentWidth < k ) {
+        return this.strategies.growLeft;
+      } else if ( perCentWidth > 1 - k ) {
+        return this.strategies.growRight;
+      } else {
+        return this.strategies.move;
+      }
+    }
+
   }
 
   getXAcrossEvents (e) {
@@ -180,68 +224,47 @@ class PLTelegramChart {
 
   getStyles () {
     return `<style id="style_${this.index}">
-        #chart_${this.index} {
-          border-top-left-radius: 18px;
-          border-top-right-radius: 18px;
-        }
+
         #Chart_${this.index}.chart {
             margin: 20px 0;
             width: ${this.chart.width}px;
             background-color: ${this.chart.darkMode ? '#111' : '#fff'};
             padding: 20px;
-            border-radius: 20px;
+        }
+        
+        .hline {
+            width: 100%;
+            height: ${this.chart.height/5}px;
+            line-height: ${this.chart.height/5}px;
+            color: #666;
+            font-size: 12px;
+            border-top: 1px solid #666;
+        }
+        
+        #hlinesHolder_${this.index} {
+            margin-bottom: -${this.chart.height}px;
+            height: ${this.chart.height}px;
+            width: ${this.chart.width}px;
         }
         #Chart_${this.index} .range {
             height: 40px;
             background: ${this.chart.darkMode ? '#111' : '#fff'};
             cursor: move;
             border: 1px solid ${this.chart.darkMode ? '#bbb' : '#444'};
+            box-sizing: border-box;
+            z-index:8;
+            opacity: 0.25;
         }
-        #Chart_${this.index} .leftControl {
+        #control_${this.index} {
             height: 40px;
-            background-color: ${this.chart.darkMode ? '#333' : '#ccc'};
-            opacity: 0.75;
+            opacity: 1;
             float: left;
-            cursor: auto;
-            text-align: center;
-            font-size: 10px;
-            font-weight: bold;
-            color: ${this.chart.darkMode ? '#eee' : '#111'};
-            line-height: 40px;
-        }
-        #Chart_${this.index} .leftSubControl {
-            width: ${this.chart.controlsWidth}px;
-            height: 40px;
-            background-color: ${this.chart.darkMode ? '#bbb' : '#444'};
-            opacity: 0.95;
-            float: left;
-            cursor: w-resize;
-            z-index: 999;
-        }
-        #Chart_${this.index} .rightControl {
-            height: 40px;
-            background-color: ${this.chart.darkMode ? '#333' : '#ccc'};
-            opacity: 0.75;
-            float: right;
-            cursor: auto;
-            text-align: center;
-            font-size: 10px;
-            font-weight: bold;
-            color: ${this.chart.darkMode ? '#eee' : '#111'};
-            line-height: 40px;
-        }
-        #Chart_${this.index} .rightSubControl {
-            width: ${this.chart.controlsWidth}px;
-            height: 40px;
-            background-color: ${this.chart.darkMode ? '#bbb' : '#444'};
-            opacity: 0.95;
-            float: right;
-            cursor: e-resize;
-            z-index: 999;
-        }
-        #Chart_${this.index} .canvas {
+            cursor: move;
+            z-index: 10;
+            margin-top: -41px;
             border: 1px solid ${this.chart.darkMode ? '#bbb' : '#444'};
         }
+
         #Chart_${this.index} .round {
             position: relative;
             display: inline-block;
@@ -330,6 +353,15 @@ class PLTelegramChart {
             width: 8px;
             height: ${this.chart.height}px;
             margin-top: -${this.chart.height + 66}px;
+             z-index: 10;
+
+        }
+        #linesHolder_${this.index} {
+            height: ${this.chart.height}px;
+            width: ${this.chart.width}px;
+            margin-top: -${this.chart.height}px;
+            opacity: 0.5;
+            z-index: 2;
         }
     </style>`
 
@@ -347,14 +379,19 @@ class PLTelegramChart {
 
   getTemplate () {
     return `<div class="chart" id="Chart_${this.index}">
-                <canvas class="canvas" width="${this.chart.width}" height="${this.chart.height}" id="chart_${this.index}"></canvas>
-                <div id="dates_holder_${this.index}"></div>
-                <div class="range" id="range_${this.index}" style="width: ${this.chart.width}px;">
-                  <div class="leftControl" id="leftControl_${this.index}" style="width: ${Math.round(this.chart.width/4)}px;"></div>
-                  <div class="leftSubControl" id="leftSubControl_${this.index}"></div>
-                  <div class="rightControl" id="rightControl_${this.index}" style="width: ${Math.round(this.chart.width/4)}px;"></div>
-                  <div class="rightSubControl" id="rightSubControl_${this.index}"></div>
+                <div id="hlinesHolder_${this.index}">
+                <div id="hline_${this.index}_0" class="hline"></div>
+                <div id="hline_${this.index}_1" class="hline"></div>
+                <div id="hline_${this.index}_2" class="hline"></div>
+                <div id="hline_${this.index}_3" class="hline"></div>
+                <div id="hline_${this.index}_4" class="hline"></div>
                 </div>
+                <canvas id="chart_${this.index}" width="${this.chart.width}" height="${this.chart.height}">
+                </canvas>
+                <div id="dates_holder_${this.index}"></div><div>
+                <div class="range" id="range_${this.index}" style="width: ${this.chart.width}px;"></div>
+                </div>
+                <div id="control_${this.index}" style="width: ${Math.round(this.chart.width/2)}px; margin-left: ${Math.round(this.chart.width/4)}px"></div>
                 <div id="verticalLine_${this.index}"></div>
                 <div id="pointsHolder_${this.index}"></div>
                 <div id="pointShower_${this.index}"></div>
@@ -390,35 +427,6 @@ class PLTelegramChart {
     return content;
   }
 
-  decreaseWidth (id, x) {
-    let element = document.getElementById(id);
-    if(element){
-      let width = element.style.width || 120;
-      element.style.width = parseInt(width, 10) - x + 'px';
-    }
-    this.calculate();
-  }
-
-  increaseWidth (id, x) {
-    let element = document.getElementById(id);
-    if ( element ) {
-      let width = element.style.width || 120;
-      element.style.width = parseInt(width, 10) + x + 'px';
-    }
-    this.calculate();
-  }
-
-  calculate () {
-    let rsc = document.getElementById(`rightControl_${this.index}`),
-      lsc = document.getElementById(`leftControl_${this.index}`),
-      c = document.getElementById(`range_${this.index}`),
-      base = parseInt(c.style.width, 10),
-      start = parseInt(lsc.style.width, 10)/base,
-      end = (base - parseInt(rsc.style.width, 10))/base;
-    this.markers =  { start, end };
-    this.showPoint();
-  }
-
   drawDates() {
     let target = document.getElementById(`dates_holder_${this.index}`);
     let canvas = document.createElement('canvas');
@@ -448,16 +456,16 @@ class PLTelegramChart {
     }
     target.style.background = `url(${canvas.toDataURL()})`;
     target.style['background-position'] = `left ${canvas.width * (1 - start)}px top`;
-    let lc = document.getElementById(`leftControl_${this.index}`);
-    lc.innerText = '';
-    if ( parseInt(lc.style.width, 10) >= 70 ) {
-      lc.innerText = `from ${new Date(xData[Start]).getDate()} ${this.defaults.months[new Date(xData[Start]).getMonth()]}`;
-    }
-    let rc = document.getElementById(`rightControl_${this.index}`);
-    rc.innerText = '';
-    if ( parseInt(rc.style.width, 10) >= 70 ) {
-      rc.innerText = `to ${new Date(xData[End]).getDate()} ${this.defaults.months[new Date(xData[End]).getMonth()]}`;
-    }
+    // let lc = document.getElementById(`leftControl_${this.index}`);
+    // lc.innerText = '';
+    // if ( parseInt(lc.style.width, 10) >= 70 ) {
+    //   lc.innerText = `from ${new Date(xData[Start]).getDate()} ${this.defaults.months[new Date(xData[Start]).getMonth()]}`;
+    // }
+    // let rc = document.getElementById(`rightControl_${this.index}`);
+    // rc.innerText = '';
+    // if ( parseInt(rc.style.width, 10) >= 70 ) {
+    //   rc.innerText = `to ${new Date(xData[End]).getDate()} ${this.defaults.months[new Date(xData[End]).getMonth()]}`;
+    // }
   }
 
   drawChart() {
@@ -466,7 +474,6 @@ class PLTelegramChart {
       ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let Max = [], Min = [];
-
     for ( let key in this.data ) {
       if ( ! this.defaults.exceptionKeys.includes(key) && !this.excludedKeys.includes(key)) {
         let { start, end } = this.markers;
@@ -483,16 +490,6 @@ class PLTelegramChart {
     let max = Math.max.apply(null, Max);
     let min = Math.min.apply(null, Min);
     let d = Math.round(canvas.height / 5);
-    for ( let i =0; i < canvas.height; i = i + d ){
-      ctx.strokeStyle = this.chart.darkMode ? '#333' : '#eee';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, canvas.height - i );
-      ctx.lineTo(canvas.width, canvas.height - i);
-      ctx.stroke();
-      ctx.closePath();
-      ctx.moveTo(0, canvas.height - i );
-    }
     if ( Object.keys(this.data).length >  this.excludedKeys.length  + this.defaults.exceptionKeys.length) {
       for ( let key in this.data ) {
         if ( ! this.defaults.exceptionKeys.includes(key) && ! this.excludedKeys.includes(key)) {
@@ -531,25 +528,64 @@ class PLTelegramChart {
           ctx.closePath();
         }
       }
-      let e = (max - min)/5;
-      ctx.fillStyle = this.chart.darkMode ? '#eee' : '#333';
-      for ( let i = 1, j = 0; i < canvas.height; i = i + d, j++ ){
-        let y = canvas.height - i + 20;
-        ctx.fillText(Math.round(min + e*j).toString(), 20, y)
+      for ( let i =0; i < 5; i++ ){
+        let l = document.getElementById(`hline_${this.index}_${i}`);
+        l.innerHTML = Math.round(max * (5-i)/5).toString();
+      }
+
+    }
+  }
+
+  getChartData() {
+
+    let _Max = [], _Min = [], Max = {}, Min = {}, yData = {}, points = {}, { start, end } = this.markers;
+    for ( let key in this.data ) {
+      if ( ! this.defaults.exceptionKeys.includes(key) && !this.excludedKeys.includes(key)) {
+        let Start = Math.round(start * this.data[key].data.length);
+        let End = Math.round(end * this.data[key].data.length);
+        yData[key] = this.data[key].data.slice(Start, End);
+        let max = Math.max.apply(null, yData[key]);
+        let min = Math.min.apply(null, yData[key]);
+        Max[key] = Max[key] || [];
+        Min[key] = Min[key] || [];
+        Max[key].push(max);
+        Min[key].push(min);
+        _Max.push(max);
+        _Min.push(min);
+        points[key] = [];
       }
     }
-    this.drawDates();
+    let max = Math.max.apply(null, _Max);
+    let min = Math.min.apply(null, _Min);
+    let xData = this.data['x'].data.slice(Math.round(start * this.data.x.data.length), Math.round(end * this.data.x.data.length));
+    let kx = this.chart.width / xData.length;
+    if ( Object.keys(this.data).length >  this.excludedKeys.length  + this.defaults.exceptionKeys.length) {
+      for ( let key in this.data ) {
+        if ( ! this.defaults.exceptionKeys.includes(key) && ! this.excludedKeys.includes(key)) {
+          let ky = this.chart.height / (max - min);
+          for (let i=0; i < yData[key].length; i++ ){
+            let point = {
+              x:  Math.round(kx * i),
+              y:  (this.chart.height - Math.round(ky * (yData[key][i] - min)))
+            };
+            points[key].push(point);
+          }
+        }
+      }
+    }
+    this.chartData =  { points, Min, Max, _Min, _Max };
   }
 
   showPoint(data) {
     let pointShower = document.getElementById(`pointShower_${this.index}`);
     if ( data && Object.keys(data).length > 3 ) {
-      pointShower.style.left = data.left + 'px';
       pointShower.style.top = data.top + 'px';
       let template = document.createElement('template');
       template.innerHTML = this.getPointTemplate(data);
       pointShower.innerHTML = '';
       pointShower.append(template.content);
+      let br = pointShower.getBoundingClientRect();
+      pointShower.style.left = data.left - br.width/2 + 'px';
       pointShower.style.display = 'block';
     } else {
       pointShower.innerHTML = '';
@@ -564,6 +600,9 @@ class PLTelegramChart {
     canvas.height = 40;
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = this.chart.darkMode ? '#111' : '#fff';
+    ctx.rect(0, 0, canvas.width, canvas.height);
+    ctx.fill();
     let Max = [], Min = [];
     if ( Object.keys(this.data).length >  this.excludedKeys.length  + this.defaults.exceptionKeys.length ) {
       for (let key in this.data) {
@@ -603,15 +642,24 @@ class PLTelegramChart {
         }
       }
     }
+    return canvas.toDataURL();
+  }
+
+  setBackground () {
+    let data = this.drawBackground();
     let target = document.getElementById(`range_${this.index}`);
-    target.style.background = `url(${canvas.toDataURL()})`;
+    let target2 = document.getElementById(`control_${this.index}`);
+    target.style.background = `url(${data})`;
+    target2.style.background = `url(${data}) `;
+    target2.style.backgroundColor = `none`;
+    target2.style['background-position'] = `left ${Math.round(this.chart.width * (1 - this.markers.start)) + 28}px top`;
   }
 
   initEvents() {
     let target = document.getElementById(`range_${this.index}`), self = this;
     target.addEventListener('mousedown', function(e){
       e.preventDefault();
-      let strategy = self.getStrategy(e.target);
+      let strategy = self.getStrategy(e);
       if ( strategy ) {
         target.addEventListener('mousemove', strategy );
         target.addEventListener('mouseup', (e) => {
@@ -623,7 +671,7 @@ class PLTelegramChart {
       }
     });
     target.addEventListener('touchstart', function(e){
-      let strategy = self.getStrategy(e.target);
+      let strategy = self.getStrategy(e);
       if ( strategy ) {
         target.addEventListener('touchmove', strategy );
         target.addEventListener('touchend', (e) => {
@@ -708,7 +756,7 @@ class PLTelegramChart {
           }
         }
         line.style.left = x + 'px';
-        pointsHolder.style.left = x + 'px';
+        pointsHolder.style.left = x  + 'px';
         self.showPoint(data);
       }
     });
@@ -770,8 +818,31 @@ class PLTelegramChart {
       parent.appendChild(this.template.content);
       this.calculate();
       this.initEvents();
-      this.drawBackground();
+      this.setBackground();
+      this.draw();
     }
+  }
+
+  drawSVG(){
+    this.getChartData();
+    let svg = document.getElementById(`svg_${this.index}`);
+    svg.innerHTML = ''
+    for ( let key in this.chartData.points) {
+      if ( ! this.defaults.exceptionKeys.includes(key) && ! this.excludedKeys.includes(key)) {
+        svg.appendChild(this.getPopyline(key))
+      }
+    }
+    this.drawDates()
+  }
+
+  getPopyline(key){
+    let polyline = document.createElementNS("http://www.w3.org/2000/svg", 'polyline');
+    polyline.setAttribute("points", this.chartData.points[key].map(point => point.x + ',' + point.y).join(' '));
+    polyline.setAttribute("id", `polyline_${this.index}_${key}`);
+    polyline.setAttribute("fill", 'none');
+    polyline.setAttribute("stroke", this.data[key].color);
+
+    return polyline;
   }
 
   static factory (data, options) {
