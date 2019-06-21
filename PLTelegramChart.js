@@ -579,13 +579,13 @@ class PLTelegramChart {
   showPoint(data) {
     let pointShower = document.getElementById(`pointShower_${this.index}`);
     if ( data && Object.keys(data).length > 3 ) {
-      pointShower.style.top = data.top + 'px';
+      pointShower.style.top = data.top - 20 + 'px';
       let template = document.createElement('template');
       template.innerHTML = this.getPointTemplate(data);
       pointShower.innerHTML = '';
       pointShower.append(template.content);
       let br = pointShower.getBoundingClientRect();
-      pointShower.style.left = data.left - br.width/2 + 'px';
+      pointShower.style.left = data.left + br.width/4 + 'px';
       pointShower.style.display = 'block';
     } else {
       pointShower.innerHTML = '';
